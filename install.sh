@@ -9,24 +9,19 @@ NC='\033[0m'
 echo -e "${BLUE}=== Claude Code Termux Native Installer ===${NC}"
 echo -e "${BLUE}=== Auto-Update Enabled | No Proot ===${NC}"
 
-# 1. Setup Environment
 echo -e "${GREEN}[1/2] Installing Glibc environment...${NC}"
 pkg update -y
 pkg install glibc-repo -y
 pkg install nodejs-lts -y
 pkg install glibc-runner -y 
 
-# 2. Initial Install
 echo -e "${GREEN}[2/2] Installing Claude Code...${NC}"
 npm install -g @anthropic-ai/claude-code --force
 
-# 3. Create the Auto-Update Function
-# We replace the alias with a function in .bashrc
 CLAUDE_BIN_PATH="$PREFIX/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/bin/package/claude"
 
 cat << 'EOF' >> ~/.bashrc
 
-# Claude Code Native Function with Auto-Update
 claude() {
     echo -e "\033[0;33mChecking for Claude Code updates...\033[0m"
     # Update silently in the background
