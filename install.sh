@@ -1,39 +1,83 @@
-#!/data/data/com.termux/files/usr/bin/bash
-
-# Colors for output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[0;33m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+RED='\033[0;31m'
 NC='\033[0m'
 
-echo -e "${BLUE}=== Claude Code Termux Native Installer ===${NC}"
-echo -e "${BLUE}=== Auto-Update Enabled | No Proot ===${NC}"
+set -e
 
-echo -e "${GREEN}[1/2] Installing Glibc environment...${NC}"
+echo -e "${YELLOW}Installing required packages.${NC}"
+sleep 2
 pkg update -y
 pkg install glibc-repo -y
+pkg install glibc-runner -y
 pkg install nodejs-lts -y
-pkg install glibc-runner -y 
 
-echo -e "${GREEN}[2/2] Installing Claude Code...${NC}"
-npm install -g @anthropic-ai/claude-code --force
+echo -e "${YELLOW}Installing ${BLUE}claude${YELLOW} with npm.${NC}"
+sleep 2
+npm install -g @anthropic-ai/claude-code --force || echo -e "${RED}Could not install claude-code from npm. Check your internet connection, or update npm packages.${NC}"
 
-CLAUDE_BIN_PATH="$PREFIX/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/bin/package/claude"
 
-cat << 'EOF' >> ~/.bashrc
+echo -e "${YELLOW}Installing native binary for ${BLUE}claude${YELLOW}.${NC}"
+sleep 2
+URL=$(npm view @anthropic-ai/claude-code-linux-arm64 dist.tarball)
 
-claude() {
-    echo -e "\033[0;33mChecking for Claude Code updates...\033[0m"
-    # Update silently in the background
-    npm install -g @anthropic-ai/claude-code --force --silent
-    
-    CLAUDE_PATH="$PREFIX/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/bin/package/claude"
-    if [ -f "$CLAUDE_PATH" ]; then
-        chmod +x "$CLAUDE_PATH"
-        glibc-runner "$CLAUDE_PATH" "$@"
-    else
-        echo -e "\033[0;31mError: Claude binary not found. Try reinstalling.\033[0m"
-    fi
+if [ -z "$URL" ]; then
+    echo "${RED}Error: Cannot get URL. Check your internet connection.${NC}"
+    exit 1
+fi
+
+echo "Installing: $URL"
+wget -q --show-progress "$URL" || echo -e "${RED}Could not download native binary for claude code. Check your internet connection.${NC}"
+
+mkdir -p /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64
+
+tar -xvzf claude-code-linux-arm64-*.tgz -C /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64 --strip-components=1 
+
+rm claude-code-linux-arm64-*.tgz
+
+cat << 'EOF' > $PREFIX/bin/claude
+#!/bin/bash
+
+PACKAGE="@anthropic-ai/claude-code-linux-arm64"
+INSTALL_DIR="/data/data/com.termux/files/usr/lib/node_modules/$PACKAGE"
+PACKAGE_JSON="$INSTALL_DIR/package.json"
+BINARY_PATH="$INSTALL_DIR/claude"
+
+# 1. Güncelleme Kontrolü
+if [ ! -f "$BINARY_PATH" ]; then
+    echo "Claude binary not found at $BINARY_PATH"
+    echo "Please reinstall it."
+    exit 1
+fi
+echo -n "Checking for updates... "
+LATEST_VERSION=$(npm view $PACKAGE version 2>/dev/null)
+
+if [ -f "$PACKAGE_JSON" ]; then
+    INSTALLED_VERSION=$(grep '"version":' "$PACKAGE_JSON" | cut -d'"' -f4)
+else
+    INSTALLED_VERSION="none"
+fi
+
+if [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ] && [ ! -z "$LATEST_VERSION" ]; then
+    echo -e "\n New version ($LATEST_VERSION) found. Updating..."
+    URL=$(npm view $PACKAGE dist.tarball)
+    mkdir -p "$INSTALL_DIR"
+    wget -q --show-progress "$URL" -O /tmp/claude_update.tgz
+    tar -xzf /tmp/claude_update.tgz -C "$INSTALL_DIR" --strip-components=1
+    rm /tmp/claude_update.tgz
+    chmod +x "$BINARY_PATH"
+    echo "Update complete."
+    sleep 2
+else
+    echo "Done (Already up to date)."
+    sleep 2
+fi
+
+# 2. glibc-runner ile Çalıştır
+glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/claude
+EOF
+echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
+echo -e "${YELLOW}Update checks are on.${NC}"
 }
 EOF
 
