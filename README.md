@@ -2,7 +2,7 @@
 
 ```bash
 pkg install wget
-wget https://raw.githubusercontent.com/Star1xr/termux-claude-code/refs/heads/main/install.sh
+wget https://raw.githubusercontent.com/Star1xr/termux-claude-code/refs/heads/main/install.sh && chmod +x install.sh && ./install.sh
 ```
 Then run claude code with ```claude```
 
