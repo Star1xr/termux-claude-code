@@ -63,8 +63,8 @@ if [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ] && [ ! -z "$LATEST_VERSION" ]; 
     URL=$(npm view $PACKAGE dist.tarball)
     mkdir -p "$INSTALL_DIR"
     wget -q --show-progress "$URL" -O /tmp/claude_update.tgz
-    tar -xzf /tmp/claude_update.tgz -C "$INSTALL_DIR" --strip-components=1
-    rm /tmp/claude_update.tgz
+    tar -xzf $HOME/claude_update.tgz -C "$INSTALL_DIR" --strip-components=1
+    rm $HOME/claude_update.tgz
     chmod +x "$BINARY_PATH"
     echo "Update complete."
     sleep 2
@@ -73,7 +73,6 @@ else
     sleep 2
 fi
 
-# 2. glibc-runner ile Çalıştır
 glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/claude
 EOF
 echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
