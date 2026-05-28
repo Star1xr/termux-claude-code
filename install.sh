@@ -63,9 +63,10 @@ if [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ] && [ ! -z "$LATEST_VERSION" ]; 
     echo -e "\n New version ($LATEST_VERSION) found. Updating..."
     URL=$(npm view $PACKAGE dist.tarball)
     mkdir -p "$INSTALL_DIR"
-    wget -q --show-progress "$URL" -O /tmp/claude_update.tgz
-    tar -xzf $HOME/claude_update.tgz -C "$INSTALL_DIR" --strip-components=1
-    rm $HOME/claude_update.tgz
+    TARBALL="$HOME/claude_update.tgz"
+    wget -q --show-progress "$URL" -O "$TARBALL"
+    tar -xzf "$TARBALL" -C "$INSTALL_DIR" --strip-components=1
+    rm "$TARBALL"
     chmod +x "$BINARY_PATH"
     echo "Update complete."
     sleep 0.5
