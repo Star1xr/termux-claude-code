@@ -80,5 +80,4 @@ echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
 echo -e "${YELLOW}Update checks are on.${NC}"
 
 echo -e "${GREEN}=== INSTALLATION COMPLETE ===${NC}"
-echo -e "Run: ${BLUE}source ~/.bashrc${NC} to activate."
 echo -e "Now, every time you type ${BLUE}claude${NC}, it will check for updates and run natively."
