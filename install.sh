@@ -7,19 +7,19 @@ NC='\033[0m'
 set -e
 
 echo -e "${YELLOW}Installing required packages.${NC}"
-sleep 2
+sleep 0.5
 pkg update -y
 pkg install glibc-repo -y
 pkg install glibc-runner -y
 pkg install nodejs-lts -y
 
 echo -e "${YELLOW}Installing ${BLUE}claude${YELLOW} with npm.${NC}"
-sleep 2
+sleep 0.5
 npm install -g @anthropic-ai/claude-code --force || echo -e "${RED}Could not install claude-code from npm. Check your internet connection, or update npm packages.${NC}"
 
 
 echo -e "${YELLOW}Installing native binary for ${BLUE}claude${YELLOW}.${NC}"
-sleep 2
+sleep 0.5
 URL=$(npm view @anthropic-ai/claude-code-linux-arm64 dist.tarball)
 
 if [ -z "$URL" ]; then
@@ -68,10 +68,10 @@ if [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ] && [ ! -z "$LATEST_VERSION" ]; 
     rm $HOME/claude_update.tgz
     chmod +x "$BINARY_PATH"
     echo "Update complete."
-    sleep 2
+    sleep 0.5
 else
     echo "Done (Already up to date)."
-    sleep 2
+    sleep 0.5
 fi
 
 glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/claude
