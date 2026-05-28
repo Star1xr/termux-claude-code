@@ -1,6 +1,7 @@
 YELLOW='\033[1;33m'
 BLUE='\033[1;34m'
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 NC='\033[0m'
 
 set -e
@@ -77,8 +78,6 @@ glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/clau
 EOF
 echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
 echo -e "${YELLOW}Update checks are on.${NC}"
-}
-EOF
 
 echo -e "${GREEN}=== INSTALLATION COMPLETE ===${NC}"
 echo -e "Run: ${BLUE}source ~/.bashrc${NC} to activate."
