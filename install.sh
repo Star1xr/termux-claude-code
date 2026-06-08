@@ -6,6 +6,10 @@ NC='\033[0m'
 
 set -e
 
+# Termux sets PREFIX=/data/data/com.termux/files/usr. Fail early if it is unset
+# so we never write the wrapper to an unintended path like /bin/claude.
+: "${PREFIX:?PREFIX is not set (are you running in Termux?)}"
+
 echo -e "${YELLOW}Installing required packages.${NC}"
 sleep 2
 pkg update -y
@@ -32,15 +36,21 @@ cat << 'SCRIPT_EOF' > "$PREFIX/etc/fix-glibc-runner-quoting.sh"
 # Re-apply the "$@" quoting fixes to glibc-runner after apt touches it.
 # Idempotent: each sed only matches the *unquoted* form, so re-runs are no-ops.
 set -u
-LAUNCHER="/data/data/com.termux/files/usr/glibc/bin/glibc-runner"
 INNER="/data/data/com.termux/files/usr/opt/glibc-runner/glibc-runner.sh"
 changed=0
-if [ -f "$LAUNCHER" ]; then
+# Four launcher copies exist (glibc-runner + grun, in both bin dirs); a clean
+# login shell resolves /usr/bin/glibc-runner, glibc shells use /usr/glibc/bin.
+for LAUNCHER in \
+    "/data/data/com.termux/files/usr/glibc/bin/glibc-runner" \
+    "/data/data/com.termux/files/usr/glibc/bin/grun" \
+    "/data/data/com.termux/files/usr/bin/glibc-runner" \
+    "/data/data/com.termux/files/usr/bin/grun"; do
+    [ -f "$LAUNCHER" ] || continue
     if grep -q 'glibc-runner\.sh \$@$' "$LAUNCHER"; then
         sed -i 's|\(glibc-runner\.sh\) \$@$|\1 "$@"|' "$LAUNCHER"
         changed=1
     fi
-fi
+done
 if [ -f "$INNER" ]; then
     if grep -qE '_glibc-runner_debug\) (ld\.so )?\$@$' "$INNER"; then
         sed -i 's|\(exec \$(_glibc-runner_debug)\) \$@$|\1 "$@"|' "$INNER"
@@ -89,7 +99,8 @@ tar -xvzf claude-code-linux-arm64-*.tgz -C /data/data/com.termux/files/usr/lib/n
 
 rm claude-code-linux-arm64-*.tgz
 
-cat << 'EOF' > $PREFIX/bin/claude
+mkdir -p "$PREFIX/bin"
+cat << 'EOF' > "$PREFIX/bin/claude"
 #!/data/data/com.termux/files/usr/bin/bash
 
 PACKAGE="@anthropic-ai/claude-code-linux-arm64"
@@ -154,7 +165,7 @@ export USE_BUILTIN_RIPGREP=0
 exec glibc-runner "$BINARY_PATH" "$@"
 EOF
 
-chmod +x $PREFIX/bin/claude
+chmod +x "$PREFIX/bin/claude"
 
 echo -e "${GREEN}=== INSTALLATION COMPLETE ===${NC}"
 echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
