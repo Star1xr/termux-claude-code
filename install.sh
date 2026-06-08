@@ -34,44 +34,78 @@ sleep 1
 cat << 'SCRIPT_EOF' > "$PREFIX/etc/fix-glibc-runner-quoting.sh"
 #!/data/data/com.termux/files/usr/bin/bash
 # Re-apply the "$@" quoting fixes to glibc-runner after apt touches it.
+# glibc-runner ships an unquoted $@ that word-splits multi-word args; the files
+# are NOT dpkg conffiles, so apt overwrites them on upgrade/reinstall.
 # Idempotent: each sed only matches the *unquoted* form, so re-runs are no-ops.
+# Best-effort (always exits 0 so it can't break apt), but it warns on stderr and
+# to a log if a target is no longer in the expected shape (i.e. the patch went
+# stale because upstream changed the file), so the no-op never goes unnoticed.
 set -u
-INNER="/data/data/com.termux/files/usr/opt/glibc-runner/glibc-runner.sh"
+
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+LOG="$PREFIX/var/log/fix-glibc-runner-quoting.log"
+
+warn() {
+    echo "fix-glibc-runner-quoting: WARNING: $*" >&2
+    if mkdir -p "$PREFIX/var/log" 2>/dev/null; then
+        printf '%s %s\n' "$(date 2>/dev/null)" "$*" >> "$LOG" 2>/dev/null
+    fi
+}
+
 changed=0
-# Four launcher copies exist (glibc-runner + grun, in both bin dirs); a clean
-# login shell resolves /usr/bin/glibc-runner, glibc shells use /usr/glibc/bin.
+problems=0
+
+# All four launcher copies (glibc-runner + grun, in both bin dirs); a clean
+# login shell resolves $PREFIX/bin/glibc-runner, glibc shells use glibc/bin.
 for LAUNCHER in \
-    "/data/data/com.termux/files/usr/glibc/bin/glibc-runner" \
-    "/data/data/com.termux/files/usr/glibc/bin/grun" \
-    "/data/data/com.termux/files/usr/bin/glibc-runner" \
-    "/data/data/com.termux/files/usr/bin/grun"; do
+    "$PREFIX/glibc/bin/glibc-runner" \
+    "$PREFIX/glibc/bin/grun" \
+    "$PREFIX/bin/glibc-runner" \
+    "$PREFIX/bin/grun"; do
     [ -f "$LAUNCHER" ] || continue
     if grep -q 'glibc-runner\.sh \$@$' "$LAUNCHER"; then
         sed -i 's|\(glibc-runner\.sh\) \$@$|\1 "$@"|' "$LAUNCHER"
         changed=1
     fi
+    # Every launcher sources glibc-runner.sh; after patching it must be quoted.
+    # References it but not quoted => sed failed or upstream changed the line.
+    if grep -q 'glibc-runner\.sh' "$LAUNCHER" && ! grep -qF 'glibc-runner.sh "$@"' "$LAUNCHER"; then
+        warn "$LAUNCHER not in expected 'glibc-runner.sh \"\$@\"' form; patch may be stale"
+        problems=1
+    fi
 done
+
+INNER="$PREFIX/opt/glibc-runner/glibc-runner.sh"
 if [ -f "$INNER" ]; then
     if grep -qE '_glibc-runner_debug\) (ld\.so )?\$@$' "$INNER"; then
         sed -i 's|\(exec \$(_glibc-runner_debug)\) \$@$|\1 "$@"|' "$INNER"
         sed -i 's|\(exec \$(_glibc-runner_debug) ld\.so\) \$@$|\1 "$@"|' "$INNER"
         changed=1
     fi
+    if grep -q 'exec \$(_glibc-runner_debug) ld\.so' "$INNER" && ! grep -qF 'exec $(_glibc-runner_debug) ld.so "$@"' "$INNER"; then
+        warn "$INNER ld.so exec line not in expected quoted form; patch may be stale"
+        problems=1
+    fi
 fi
-if [ "$changed" = 1 ]; then
+
+if [ "$changed" = 1 ] && [ "$problems" = 0 ]; then
     echo "fix-glibc-runner-quoting: re-applied \"\$@\" quoting to glibc-runner"
 fi
+
 exit 0
 SCRIPT_EOF
 chmod +x "$PREFIX/etc/fix-glibc-runner-quoting.sh"
 
 mkdir -p "$PREFIX/etc/apt/apt.conf.d"
-cat << 'HOOK_EOF' > "$PREFIX/etc/apt/apt.conf.d/99-fix-glibc-runner-quoting.conf"
+HOOK_CONF="$PREFIX/etc/apt/apt.conf.d/99-fix-glibc-runner-quoting.conf"
+cat << 'HOOK_EOF' > "$HOOK_CONF"
 // Self-healing: re-apply the "$@" quoting fix to glibc-runner after every
 // apt/dpkg run, since the package ships unquoted $@ and overwrites the files
 // (they are not conffiles) on upgrade/reinstall.
-DPkg::Post-Invoke { "/data/data/com.termux/files/usr/etc/fix-glibc-runner-quoting.sh || true"; };
 HOOK_EOF
+# Generate the Post-Invoke line from the concrete $PREFIX so the hook path stays
+# consistent with where the helper script is actually installed (no hardcoding).
+printf 'DPkg::Post-Invoke { "%s/etc/fix-glibc-runner-quoting.sh || true"; };\n' "$PREFIX" >> "$HOOK_CONF"
 
 # Apply the fix now (the hook only fires on the *next* apt run).
 "$PREFIX/etc/fix-glibc-runner-quoting.sh"
