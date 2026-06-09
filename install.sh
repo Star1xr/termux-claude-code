@@ -195,11 +195,31 @@ fi
 # fine and restores the native Grep tool.
 export USE_BUILTIN_RIPGREP=0
 
+# Fix the *bash* grep()/find() shims too (separate from the Grep tool above).
+# Claude exports CLAUDE_CODE_EXECPATH=ld.so to its child shells; the injected
+# grep()/find() shell functions then run `ld.so -G/-S ...` and die with
+# "error while loading shared libraries". BASH_ENV makes every non-interactive
+# child shell source a one-liner that empties EXECPATH, so the shims fall back
+# to native `command grep`/`command find`.
+export BASH_ENV="/data/data/com.termux/files/usr/etc/claude-bash-shim-fix.sh"
+
 # exec + "$@": replace this process AND forward all arguments to claude.
 exec glibc-runner "$BINARY_PATH" "$@"
 EOF
 
 chmod +x "$PREFIX/bin/claude"
+
+# Companion to BASH_ENV in the wrapper above: sourced by every non-interactive
+# bash Claude spawns, it neutralizes CLAUDE_CODE_EXECPATH so grep()/find() use
+# their native fallback. Kept as a separate file so the wrapper stays minimal.
+cat << 'SHIMFIX_EOF' > "$PREFIX/etc/claude-bash-shim-fix.sh"
+# Sourced via BASH_ENV by every non-interactive bash Claude Code spawns for its
+# Bash tool. Under glibc-runner, Claude exports CLAUDE_CODE_EXECPATH pointing at
+# ld.so; its injected grep()/find() shell functions then run `ld.so -G/-S ...`
+# -> "error while loading shared libraries". Emptying EXECPATH makes those shims
+# take their built-in fallback to `command grep` / `command find` (native).
+export CLAUDE_CODE_EXECPATH=
+SHIMFIX_EOF
 
 echo -e "${GREEN}=== INSTALLATION COMPLETE ===${NC}"
 echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
