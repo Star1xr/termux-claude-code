@@ -130,8 +130,7 @@ tar -xvzf claude-code-linux-arm64-*.tgz -C /data/data/com.termux/files/usr/lib/n
 
 rm claude-code-linux-arm64-*.tgz
 
-mkdir -p "$PREFIX/bin"
-cat << 'EOF' > "$PREFIX/bin/claude"
+cat << 'EOF' > /data/data/com.termux/files/usr/bin/claude
 #!/data/data/com.termux/files/usr/bin/bash
 
 PACKAGE="@anthropic-ai/claude-code-linux-arm64"
@@ -145,10 +144,6 @@ if [ ! -f "$BINARY_PATH" ]; then
     exit 1
 fi
 
-# Skip the update check in non-interactive print mode (-p/--print): it adds
-# network latency and its "Checking for updates..." text prints to stdout,
-# which corrupts -p output (especially --output-format json).
-# Set CLAUDE_SKIP_UPDATE=1 to skip the check always.
 SKIP_UPDATE="${CLAUDE_SKIP_UPDATE:-0}"
 for a in "$@"; do
     case "$a" in
@@ -156,7 +151,9 @@ for a in "$@"; do
     esac
 done
 
-if [ "$SKIP_UPDATE" != 1 ]; then
+if [ "$SKIP_UPDATE" = 1 ]; then
+    echo "Skipped update check."
+else
     echo -n "Checking for updates... "
     LATEST_VERSION=$(npm view "$PACKAGE" version 2>/dev/null)
 
@@ -186,34 +183,13 @@ if [ "$SKIP_UPDATE" != 1 ]; then
     fi
 fi
 
-if [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ] && [ ! -z "$LATEST_VERSION" ]; then
-    echo -e "\n New version ($LATEST_VERSION) found. Updating..."
-    URL=$(npm view $PACKAGE dist.tarball)
-    mkdir -p "$INSTALL_DIR"
-    wget -q --show-progress "$URL" -O $HOME/claude_update.tgz
-    tar -xzf $HOME/claude_update.tgz -C "$INSTALL_DIR" --strip-components=1
-    rm $HOME/claude_update.tgz
-    chmod +x "$BINARY_PATH"
-    echo "Update complete."
-    sleep 2
-else
-    echo "Done (Already up to date)."
-    sleep 2
-fi
-
-# fixed bad fucking usage of cat
-glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/claude
+glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/claude "$@"
 EOF
-# YOU FUCKING SERIOUS? PR OWNERS ARE DUMB IN BIG 2026?
-echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
-echo -e "${YELLOW}Update checks are on.${NC}"
 
 
 chmod +x "$PREFIX/bin/claude"
 
-# Companion to BASH_ENV in the wrapper above: sourced by every non-interactive
-# bash Claude spawns, it neutralizes CLAUDE_CODE_EXECPATH so grep()/find() use
-# their native fallback. Kept as a separate file so the wrapper stays minimal.
+# Companion to BASH_ENV in the wrapper
 cat << 'SHIMFIX_EOF' > "$PREFIX/etc/claude-bash-shim-fix.sh"
 # Sourced via BASH_ENV by every non-interactive bash Claude Code spawns for its
 # Bash tool. Under glibc-runner, Claude exports CLAUDE_CODE_EXECPATH pointing at
@@ -225,5 +201,5 @@ SHIMFIX_EOF
 
 echo -e "${GREEN}=== INSTALLATION COMPLETE ===${NC}"
 echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
-echo -e "${YELLOW}Update checks run on interactive launch${NC} (skipped for ${BLUE}claude -p${NC}; set ${BLUE}CLAUDE_SKIP_UPDATE=1${NC} to always skip)."
-echo -e "Every time you type ${BLUE}claude${NC} interactively, it will check for updates and run natively."
+echo -e "${YELLOW}Update checks are on${NC} (skip with ${BLUE}claude -p${NC}; set ${BLUE}CLAUDE_SKIP_UPDATE=1${NC} to always skip)."
+echo -e "Every time you type ${BLUE}claude${NC}, it will check for updates and run natively."
