@@ -14,10 +14,8 @@ pkg update -y
 pkg install glibc-repo -y
 pkg install glibc-runner -y
 pkg install nodejs-lts -y
-# ripgrep: Claude Code uses it for search. We point Claude Code at the system
-# rg (see USE_BUILTIN_RIPGREP below), because the binary's bundled ripgrep is a
-# glibc binary launched via ld.so and fails to load standalone on this setup.
 pkg install ripgrep -y
+
 
 # ---- Fix glibc-runner's unquoted $@ -----------------------------------------
 # The glibc-runner package launches binaries with an UNQUOTED $@ in two places,
@@ -26,6 +24,8 @@ pkg install ripgrep -y
 # These files are NOT dpkg conffiles, so apt silently overwrites them on
 # upgrade/reinstall; we also install an apt Post-Invoke hook that re-applies the
 # fix after every apt run so it survives future glibc-runner package updates.
+
+
 echo -e "${YELLOW}Patching ${BLUE}glibc-runner${YELLOW} argument quoting.${NC}"
 sleep 1
 
@@ -101,8 +101,7 @@ cat << 'HOOK_EOF' > "$HOOK_CONF"
 // apt/dpkg run, since the package ships unquoted $@ and overwrites the files
 // (they are not conffiles) on upgrade/reinstall.
 HOOK_EOF
-# Generate the Post-Invoke line from the concrete $PREFIX so the hook path stays
-# consistent with where the helper script is actually installed (no hardcoding).
+# what the continueous larp
 printf 'DPkg::Post-Invoke { "%s/etc/fix-glibc-runner-quoting.sh || true"; };\n' "$PREFIX" >> "$HOOK_CONF"
 
 # Apply the fix now (the hook only fires on the *next* apt run).
