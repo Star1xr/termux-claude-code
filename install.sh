@@ -189,22 +189,26 @@ if [ "$SKIP_UPDATE" != 1 ]; then
     fi
 fi
 
-# Use the system ripgrep (/usr/bin/rg). The binary's bundled ripgrep is a glibc
-# binary launched via ld.so, so Claude Code's grep() shell integration would run
-# `ld.so -G ...` -> "-G: error while loading shared libraries". System rg loads
-# fine and restores the native Grep tool.
-export USE_BUILTIN_RIPGREP=0
+if [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ] && [ ! -z "$LATEST_VERSION" ]; then
+    echo -e "\n New version ($LATEST_VERSION) found. Updating..."
+    URL=$(npm view $PACKAGE dist.tarball)
+    mkdir -p "$INSTALL_DIR"
+    wget -q --show-progress "$URL" -O $HOME/claude_update.tgz
+    tar -xzf $HOME/claude_update.tgz -C "$INSTALL_DIR" --strip-components=1
+    rm $HOME/claude_update.tgz
+    chmod +x "$BINARY_PATH"
+    echo "Update complete."
+    sleep 2
+else
+    echo "Done (Already up to date)."
+    sleep 2
+fi
 
-# Fix the *bash* grep()/find() shims too (separate from the Grep tool above).
-# Claude exports CLAUDE_CODE_EXECPATH=ld.so to its child shells; the injected
-# grep()/find() shell functions then run `ld.so -G/-S ...` and die with
-# "error while loading shared libraries". BASH_ENV makes every non-interactive
-# child shell source a one-liner that empties EXECPATH, so the shims fall back
-# to native `command grep`/`command find`.
-export BASH_ENV="/data/data/com.termux/files/usr/etc/claude-bash-shim-fix.sh"
-
-# exec + "$@": replace this process AND forward all arguments to claude.
-exec glibc-runner "$BINARY_PATH" "$@"
+glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/claude
+EOF
+echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
+echo -e "${YELLOW}Update checks are on.${NC}"
+}
 EOF
 
 chmod +x "$PREFIX/bin/claude"
