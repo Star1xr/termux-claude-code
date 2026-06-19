@@ -144,16 +144,18 @@ if [ ! -f "$BINARY_PATH" ]; then
     exit 1
 fi
 
-SKIP_UPDATE="${CLAUDE_SKIP_UPDATE:-0}"
-for a in "$@"; do
-    case "$a" in
-        -p|--print) SKIP_UPDATE=1; break;;
-    esac
+SKIP_UPDATE=0
+REAL_ARGS=()
+
+for arg in "$@"; do
+    if [ "$arg" = "-p" ] || [ "$arg" = "--print" ]; then
+        SKIP_UPDATE=1
+    else
+        REAL_ARGS+=("$arg")
+    fi
 done
 
-if [ "$SKIP_UPDATE" = 1 ]; then
-    echo "Skipped update check."
-else
+if [ "$SKIP_UPDATE" != 1 ]; then
     echo -n "Checking for updates... "
     LATEST_VERSION=$(npm view "$PACKAGE" version 2>/dev/null)
 
@@ -183,9 +185,12 @@ else
     fi
 fi
 
-glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/claude "$@"
+if [ "$SKIP_UPDATE" = 1 ] && { [ "${#REAL_ARGS[@]}" -eq 0 ] || [ "${REAL_ARGS[0]}" = "--resume" ]; }; then
+    glibc-runner "$BINARY_PATH" "${REAL_ARGS[@]}"
+else
+    glibc-runner "$BINARY_PATH" "$@"
+fi
 EOF
-
 
 chmod +x "$PREFIX/bin/claude"
 
