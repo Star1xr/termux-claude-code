@@ -205,9 +205,10 @@ fi
 # fixed bad fucking usage of cat
 cat << 'EOF' > /data/data/com.termux/files/usr/bin/claude
 glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/claude
+EOF
+# YOU FUCKING SERIOUS? PR OWNERS ARE DUMB IN BIG 2026?
 echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
 echo -e "${YELLOW}Update checks are on.${NC}"
-EOF
 
 
 chmod +x "$PREFIX/bin/claude"
