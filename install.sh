@@ -185,8 +185,27 @@ if [ "$SKIP_UPDATE" != 1 ]; then
     fi
 fi
 
-if [ "$SKIP_UPDATE" = 1 ] && { [ "${#REAL_ARGS[@]}" -eq 0 ] || [ "${REAL_ARGS[0]}" = "--resume" ]; }; then
-    glibc-runner "$BINARY_PATH" "${REAL_ARGS[@]}"
+if [ "$SKIP_UPDATE" = 1 ]; then
+    if [ -t 0 ] && [ ${#REAL_ARGS[@]} -eq 0 ]; then
+        glibc-runner "$BINARY_PATH"
+    elif [ -t 0 ] && [ ${#REAL_ARGS[@]} -gt 0 ]; then
+        IS_INTERACTIVE=1
+        for r_arg in "${REAL_ARGS[@]}"; do
+            case "$r_arg" in
+                config|doctor|mcp|--help|-h|--version|-v)
+                    IS_INTERACTIVE=0
+                    break
+                    ;;
+            esac
+        done
+        if [ "$IS_INTERACTIVE" -eq 1 ]; then
+            glibc-runner "$BINARY_PATH" "${REAL_ARGS[@]}"
+        else
+            glibc-runner "$BINARY_PATH" "$@"
+        fi
+    else
+        glibc-runner "$BINARY_PATH" "$@"
+    fi
 else
     glibc-runner "$BINARY_PATH" "$@"
 fi
