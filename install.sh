@@ -6,9 +6,7 @@ NC='\033[0m'
 
 set -e
 
-# Termux sets PREFIX=/data/data/com.termux/files/usr. Fail early if it is unset
-# so we never write the wrapper to an unintended path like /bin/claude.
-: "${PREFIX:?PREFIX is not set (are you running in Termux?)}"
+# we already fucking know people use termux cus repo is fucking named termux claude code?
 
 echo -e "${YELLOW}Installing required packages.${NC}"
 sleep 2
@@ -204,12 +202,13 @@ else
     sleep 2
 fi
 
+# fixed bad fucking usage of cat
+cat << 'EOF' > /data/data/com.termux/files/usr/bin/claude
 glibc-runner /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/claude-code-linux-arm64/claude
-EOF
 echo -e "${YELLOW}Run with: ${BLUE}claude${NC}"
 echo -e "${YELLOW}Update checks are on.${NC}"
-}
 EOF
+
 
 chmod +x "$PREFIX/bin/claude"
 
